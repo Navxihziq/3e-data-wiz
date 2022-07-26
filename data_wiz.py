@@ -1,4 +1,5 @@
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 # the default first 5 indexes of headers
@@ -58,8 +59,19 @@ class WorkingData:
 
         return dataframe
 
-    def rule_out(self, regional_agg_level: str, selected_region=None, select_reverse=True):
+    def rule_out(self, regional_agg_level: str, selected_tech_group=None, tech_group_select_reverse=True,
+                 selected_region=None, region_select_reverse=True):
+        # make a copy of the dataframe as working dataframe
         working_df = self.dataframe.copy()
+
+        # choosing specific tech groups
+        if selected_tech_group is None:
+            selected_tech_group = []
+
+        if tech_group_select_reverse:
+            working_df = working_df[~working_df['Fuel_Group'].isin(selected_tech_group)]
+        else:
+            working_df = working_df[~working_df['Fuel_Group'].isin(selected_tech_group)]
 
         if selected_region is None:
             selected_region = []
@@ -68,7 +80,7 @@ class WorkingData:
             working_df = working_df.groupby(by=['年份', 'Fuel_Group']).sum().reset_index()
         else:
             working_df = working_df.groupby(by=['年份', 'Fuel_Group', regional_agg_level]).sum().reset_index()
-            if select_reverse:
+            if region_select_reverse:
                 working_df = working_df[~working_df[regional_agg_level].isin(selected_region)]
             else:
                 working_df = working_df[working_df[regional_agg_level].isin(selected_region)]
@@ -85,8 +97,9 @@ class WorkingData:
         self.working_df['Complex'] = self.working_df['Complex'] / 8760
         return self.working_df
 
-    def draw(self, focused_region=None):
+    def draw(self, focused_index: str, focused_region=None, scatter=False):
         fig, ax = plt.subplots(nrows=1, ncols=1)
+        ax2 = ax.twinx()
         fig.set_size_inches(9, 9)
         fig.set_dpi(300)
 
@@ -103,10 +116,25 @@ class WorkingData:
         self.working_df = self.__transpose_dataframe()
         self.working_df.index = self.working_df.index.map(int)
 
+        # line plot section
+        line_df = self.working_df[self.working_df['index'] == "Complex"]
+        # line_df['集中式光伏'].plot(ax=ax2)
+        if not scatter:
+            ax2.plot(line_df['集中式光伏'])
+        else:
+            ax2.plot(type='scatter', data=line_df)
+
+        fig.savefig("./checking_graph0.png", dpi=300)
+
         # bar plot section
         bar_df = self.working_df[self.working_df['index'] != 'Complex']
+        bar_df = bar_df[bar_df['index'] == focused_index]  # choose the index to plot in bar plot
         bar_df.plot(kind='bar', stacked=True,
                     color=[self.ref.color_scheme.get(x, '#111111') for x in self.ref.color_scheme], ax=ax)
+
+        plt.show()
+
+        fig.savefig("./checking_graph1.png", dpi=300)
 
     def __transpose_dataframe(self):
         tech_group_order = self.ref.get_stack_order(self.working_df['Fuel_Group'].unique().tolist())
@@ -122,3 +150,27 @@ class WorkingData:
         recomb = recomb.set_index(self.working_df.index.name)
 
         return recomb.sort_index()
+
+
+file_index_list = [
+    {
+        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产能.xlsx",
+        "focused_index": "Installed Power Capacity (MW)",
+        "columns": ["Installed Power Capacity (MW)", "Installed Heat Capacity (MW)",
+                    "Installed Hydrogen Production Capacity (MW)"]
+    },
+    {
+        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产量.xlsx",
+        "focused_index": "Electricity Generation (GWh)",
+        "columns": ["Electricity Generation (GWh)", "Planned Curtailment (GWh)", "Hydrogen Production (MWh)",
+                    "Hydrogen Production (10000 Ton)", "Heat Generation (TJ)"]
+    }
+]
+
+ref = RefData("/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/color_index.xlsx")
+data = WorkingData(file_index_list, ref)
+data.rule_out("省份")
+data.calc_complex_index('Electricity Generation (GWh)', 'Installed Power Capacity (MW)')
+
+data.draw("Electricity Generation (GWh)", focused_region="Beijing", scatter=False)
+
