@@ -31,6 +31,7 @@ class RefData:
 
 class WorkingData:
     def __init__(self, file_info: list, ref: RefData):
+        self.working_df = None
         self.ref = ref
         self.dataframe = self.init_dataframe(file_info)
 
@@ -52,7 +53,23 @@ class WorkingData:
 
         return dataframe
 
-    def rule_out(self, region_level: str, ):
+    def rule_out(self, regional_agg_level: str, selected_region=None, select_reverse=True):
+        working_df = self.dataframe.copy()
+
+        if selected_region is None:
+            selected_region = []
+
+        if regional_agg_level == "全国":
+            working_df = working_df.groupby(by=['年份', 'Fuel_Group']).sum().reset_index()
+        else:
+            working_df = working_df.groupby(by=['年份', 'Fuel_Group', regional_agg_level]).sum().reset_index()
+            if select_reverse:
+                working_df = working_df[~working_df[regional_agg_level].isin(selected_region)]
+            else:
+                working_df = working_df[working_df[regional_agg_level].isin(selected_region)]
+
+        self.working_df = working_df
+        return working_df
 
 
 file_index_list = [
@@ -69,4 +86,5 @@ file_index_list = [
 ]
 
 ref = RefData("/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/color_index.xlsx")
-print(WorkingData(file_index_list, ref).dataframe.info())
+data = WorkingData(file_index_list, ref)
+print(data.rule_out("省份").info())
