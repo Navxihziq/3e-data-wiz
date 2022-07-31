@@ -132,31 +132,37 @@ class WorkingData:
 
         # line plot section
         line_df = self.working_df[self.working_df['index'] == "Complex"]
-        line_df.to_excel("./checking_sheet0.xlsx", encoding='utf-8')
-
-        if not self.tech_specific:
-            line_df = line_df.dropna(axis="columns", how="any").iloc[:, :1]
+        line_df.to_excel("./line_plot_sheet.xlsx", encoding='utf-8')
 
         # bar plot section
         bar_df = self.working_df[self.working_df['index'] != 'Complex']
         bar_df = bar_df[bar_df['index'] == focused_index]  # choose the index to plot in bar plot
-        bar_df.plot(kind='bar', stacked=True,
-                    color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
 
-        fig.savefig("./checking_graph0.png", dpi=300)
-        bar_df.to_excel("./checking_sheet.xlsx", encoding='utf-8')  # saving the bar plot data to excel
+        if not self.tech_specific:
+            line_df = line_df.dropna(axis="columns", how="any").iloc[:, :1]
+            bar_df.plot(kind='bar', stacked=True,
+                        color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
+
+        else:
+            # spread out the bars by tech group
+            bar_df.plot(kind='bar', color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
+
+        bar_df.to_excel("./bar_plot_sheet.xlsx", encoding='utf-8')  # saving the bar plot data to excel
 
         ax2 = ax.twinx()
 
-        # todo: debugging session removal expected
         if not scatter:
-            sns.lineplot(data=line_df, ax=ax2)
+            sns.lineplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax2)
         if scatter:
-            sns.scatterplot(data=line_df, ax=ax2)
+            sns.scatterplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns],
+                            ax=ax2)
 
-        ax.get_legend().remove()
-        ax2.get_legend().remove()
-        fig.savefig("./checking_graph1.png", dpi=300)
+        # ax.get_legend().remove()  # remove the legend of the bar plot
+        ax2.get_legend().remove()  # remove the legend of line plot
+
+        ax.set_yscale('log')    # set y-axis scale to log
+
+        fig.savefig("./checking_graph.png", dpi=300)  # saving the graph to file
 
         plt.show()
 
@@ -196,5 +202,5 @@ file_index_list = [
 ref = RefData("/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/color_index.xlsx")
 data = WorkingData(file_index_list, ref)
 data.rule_out("全国")
-data.calc_complex_index('CO2 Emissions (kilotons)', 'Electricity Generation (GWh)')
-data.draw("Electricity Generation (GWh)", focused_region="Beijing", scatter=True)
+data.calc_complex_index('CO2 Emissions (kilotons)', 'Electricity Generation (GWh)', tech_specific=True)
+data.draw("Electricity Generation (GWh)", focused_region="Beijing", scatter=False)
