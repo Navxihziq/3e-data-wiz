@@ -96,7 +96,7 @@ class WorkingData:
             # create a dict: yaer -> complex value
             temp = self.working_df.copy()
             temp = temp.groupby(by=['年份']).sum().reset_index()
-            temp['Complex'] = temp[dividend]/temp[divisor]
+            temp['Complex'] = temp[dividend] / temp[divisor]
             temp.to_excel("./sheet0.xlsx", encoding='utf-8')
 
             self.working_df['Complex'] = self.working_df['年份'].map(dict(temp[['年份', 'Complex']].values))
@@ -128,7 +128,7 @@ class WorkingData:
 
         # transpose the data for plotting
         self.working_df = self.__transpose_dataframe()
-        self.working_df.index = self.working_df.index.map(int)
+        self.working_df.index = self.working_df.index.map(int).map(str)
 
         # line plot section
         line_df = self.working_df[self.working_df['index'] == "Complex"]
@@ -137,25 +137,28 @@ class WorkingData:
         if not self.tech_specific:
             line_df = line_df.dropna(axis="columns", how="any").iloc[:, :1]
 
-        # todo: debugging session removal expected
-        if not scatter:
-            sns.lineplot(data=line_df, ax=ax)
-        if scatter:
-            sns.scatterplot(data=line_df, ax=ax)
-
-        ax.get_legend().remove()
-        fig.savefig("./checking_graph0.png", dpi=300)
-
         # bar plot section
         bar_df = self.working_df[self.working_df['index'] != 'Complex']
         bar_df = bar_df[bar_df['index'] == focused_index]  # choose the index to plot in bar plot
         bar_df.plot(kind='bar', stacked=True,
-                    color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax.twinx())
+                    color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
 
-        bar_df.to_excel("./checking_sheet.xlsx", encoding='utf-8')
-        plt.show()
+        fig.savefig("./checking_graph0.png", dpi=300)
+        bar_df.to_excel("./checking_sheet.xlsx", encoding='utf-8')  # saving the bar plot data to excel
 
+        ax2 = ax.twinx()
+
+        # todo: debugging session removal expected
+        if not scatter:
+            sns.lineplot(data=line_df, ax=ax2)
+        if scatter:
+            sns.scatterplot(data=line_df, ax=ax2)
+
+        ax.get_legend().remove()
+        ax2.get_legend().remove()
         fig.savefig("./checking_graph1.png", dpi=300)
+
+        plt.show()
 
     def __transpose_dataframe(self):
         tech_group_order = self.ref.get_stack_order(self.working_df['Fuel_Group'].unique().tolist())
