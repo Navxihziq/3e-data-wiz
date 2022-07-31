@@ -182,24 +182,3 @@ class WorkingData:
 
         return recomb.sort_index()
 
-
-file_index_list = [
-    {
-        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产能.xlsx",
-        "focused_index": "Installed Power Capacity (MW)",
-        "columns": ["Installed Power Capacity (MW)", "Installed Heat Capacity (MW)", "Installed Hydrogen Production "
-                                                                                     "Capacity (MW)"]
-    },
-    {
-        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产量.xlsx",
-        "focused_index": "Electricity Generation (GWh)",
-        "columns": ["Electricity Generation (GWh)", "Planned Curtailment (GWh)", "Hydrogen Production (MWh)",
-                    "Hydrogen Production (10000 Ton)", "Heat Generation (TJ)"]
-    }
-]
-
-ref = RefData("/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/color_index.xlsx")
-data = WorkingData(file_index_list, ref)
-data.rule_out('全国')
-data.calc_complex_index('Electricity Generation (GWh)', 'Installed Power Capacity (MW)', tech_specific=False)
-data.draw("Electricity Generation (GWh)", scatter=False)
