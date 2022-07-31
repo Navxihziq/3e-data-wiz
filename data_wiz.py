@@ -33,6 +33,7 @@ class RefData:
 
 class WorkingData:
     def __init__(self, file_info: list, ref: RefData):
+        self.tech_specific = None
         self.regional_agg_level = None
         self.working_df = None
         self.ref = ref
@@ -89,17 +90,30 @@ class WorkingData:
         self.working_df = working_df
         return working_df
 
-    def calc_complex_index(self, dividend: str, divisor: str, factor=False):
-        if not factor:
-            self.working_df['Complex'] = self.working_df[dividend] / self.working_df[divisor]
+    def calc_complex_index(self, dividend: str, divisor: str, factor=False, tech_specific=False):
+        self.tech_specific = tech_specific
+        if not tech_specific:
+            # create a dict: yaer -> complex value
+            temp = self.working_df.copy()
+            temp = temp.groupby(by=['年份']).sum().reset_index()
+            temp['Complex'] = temp[dividend]/temp[divisor]
+            temp.to_excel("./sheet0.xlsx", encoding='utf-8')
+
+            self.working_df['Complex'] = self.working_df['年份'].map(dict(temp[['年份', 'Complex']].values))
             return self.working_df
 
-        self.working_df['Complex'] = self.working_df['Complex'] / 8760
-        return self.working_df
+        else:
+            if not factor:
+                self.working_df['Complex'] = self.working_df[dividend] / self.working_df[divisor]
+                self.working_df.to_excel("./sheet0.xlsx", encoding='utf-8')
+                return self.working_df
+
+            else:
+                self.working_df['Complex'] = self.working_df['Complex'] / 8760
+            return self.working_df
 
     def draw(self, focused_index: str, focused_region=None, scatter=False):
         fig, ax = plt.subplots(nrows=1, ncols=1)
-        ax2 = ax.twinx()
         fig.set_size_inches(9, 9)
         fig.set_dpi(300)
 
@@ -107,7 +121,7 @@ class WorkingData:
             raise Exception
 
         if self.regional_agg_level == "全国":
-            self.working_df = self.working_df
+            self.working_df = self.working_df.set_index("年份")
         else:
             self.working_df = self.working_df[self.working_df[self.regional_agg_level] == focused_region].drop(
                 columns=[self.regional_agg_level]).set_index("年份")
@@ -118,20 +132,27 @@ class WorkingData:
 
         # line plot section
         line_df = self.working_df[self.working_df['index'] == "Complex"]
-        # line_df['集中式光伏'].plot(ax=ax2)
-        if not scatter:
-            ax2.plot(line_df['集中式光伏'])
-        else:
-            ax2.plot(type='scatter', data=line_df)
+        line_df.to_excel("./checking_sheet0.xlsx", encoding='utf-8')
 
+        if not self.tech_specific:
+            line_df = line_df.dropna(axis="columns", how="any").iloc[:, :1]
+
+        # todo: debugging session removal expected
+        if not scatter:
+            sns.lineplot(data=line_df, ax=ax)
+        if scatter:
+            sns.scatterplot(data=line_df, ax=ax)
+
+        ax.get_legend().remove()
         fig.savefig("./checking_graph0.png", dpi=300)
 
         # bar plot section
         bar_df = self.working_df[self.working_df['index'] != 'Complex']
         bar_df = bar_df[bar_df['index'] == focused_index]  # choose the index to plot in bar plot
         bar_df.plot(kind='bar', stacked=True,
-                    color=[self.ref.color_scheme.get(x, '#111111') for x in self.ref.color_scheme], ax=ax)
+                    color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax.twinx())
 
+        bar_df.to_excel("./checking_sheet.xlsx", encoding='utf-8')
         plt.show()
 
         fig.savefig("./checking_graph1.png", dpi=300)
@@ -154,10 +175,12 @@ class WorkingData:
 
 file_index_list = [
     {
-        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产能.xlsx",
-        "focused_index": "Installed Power Capacity (MW)",
-        "columns": ["Installed Power Capacity (MW)", "Installed Heat Capacity (MW)",
-                    "Installed Hydrogen Production Capacity (MW)"]
+        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1排放.xlsx",
+        "focused_index": "CO2 Emissions (kilotons)",
+        "columns": ["CO2 Emissions (kilotons)", "NOX Emissions (tons)", "SO2 Emissions (tons)",
+                    "CO2 Emissions from G&B H2 Production (kilotons)",
+                    "CO2 Emissions from COG H2 Production (kilotons)",
+                    "CO2 Emissions from H2 Production (kilotons)"]
     },
     {
         "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产量.xlsx",
@@ -169,8 +192,6 @@ file_index_list = [
 
 ref = RefData("/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/color_index.xlsx")
 data = WorkingData(file_index_list, ref)
-data.rule_out("省份")
-data.calc_complex_index('Electricity Generation (GWh)', 'Installed Power Capacity (MW)')
-
-data.draw("Electricity Generation (GWh)", focused_region="Beijing", scatter=False)
-
+data.rule_out("全国")
+data.calc_complex_index('CO2 Emissions (kilotons)', 'Electricity Generation (GWh)')
+data.draw("Electricity Generation (GWh)", focused_region="Beijing", scatter=True)
