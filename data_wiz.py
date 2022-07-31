@@ -24,8 +24,8 @@ class RefData:
 
     def get_stack_order(self, fuel_group: list):
         ls = []
-        for group in fuel_group:
-            if group in self.order_list:
+        for group in self.order_list:
+            if group in fuel_group:
                 ls.append(group)
 
         return ls
@@ -93,7 +93,7 @@ class WorkingData:
     def calc_complex_index(self, dividend: str, divisor: str, factor=False, tech_specific=False):
         self.tech_specific = tech_specific
         if not tech_specific:
-            # create a dict: yaer -> complex value
+            # create a dict: year -> complex value
             temp = self.working_df.copy()
             temp = temp.groupby(by=['年份']).sum().reset_index()
             temp['Complex'] = temp[dividend] / temp[divisor]
@@ -128,11 +128,11 @@ class WorkingData:
 
         # transpose the data for plotting
         self.working_df = self.__transpose_dataframe()
+        self.working_df.to_excel("./orderCheck.xlsx", encoding="utf-8")
         self.working_df.index = self.working_df.index.map(int).map(str)
 
         # line plot section
         line_df = self.working_df[self.working_df['index'] == "Complex"]
-        line_df.to_excel("./line_plot_sheet.xlsx", encoding='utf-8')
 
         # bar plot section
         bar_df = self.working_df[self.working_df['index'] != 'Complex']
@@ -151,16 +151,17 @@ class WorkingData:
 
         ax2 = ax.twinx()
 
+        sns.scatterplot(data=line_df, ax=ax2)
         if not scatter:
-            sns.lineplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax2)
-        if scatter:
-            sns.scatterplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns],
-                            ax=ax2)
+            ax3 = ax.twinx()
+            sns.lineplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax3)
+            ax3.get_legend().remove()  # remove legend of the points on line plot
 
-        # ax.get_legend().remove()  # remove the legend of the bar plot
+        ax.get_legend().remove()  # remove the legend of the bar plot
         ax2.get_legend().remove()  # remove the legend of line plot
 
-        ax.set_yscale('log')    # set y-axis scale to log
+        # ax.set_yscale('log')    # set y-axis scale to log
+        line_df.to_excel("./line_plot_sheet.xlsx", encoding='utf-8')
 
         fig.savefig("./checking_graph.png", dpi=300)  # saving the graph to file
 
@@ -184,12 +185,10 @@ class WorkingData:
 
 file_index_list = [
     {
-        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1排放.xlsx",
-        "focused_index": "CO2 Emissions (kilotons)",
-        "columns": ["CO2 Emissions (kilotons)", "NOX Emissions (tons)", "SO2 Emissions (tons)",
-                    "CO2 Emissions from G&B H2 Production (kilotons)",
-                    "CO2 Emissions from COG H2 Production (kilotons)",
-                    "CO2 Emissions from H2 Production (kilotons)"]
+        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产能.xlsx",
+        "focused_index": "Installed Power Capacity (MW)",
+        "columns": ["Installed Power Capacity (MW)", "Installed Heat Capacity (MW)", "Installed Hydrogen Production "
+                                                                                     "Capacity (MW)"]
     },
     {
         "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产量.xlsx",
@@ -201,6 +200,6 @@ file_index_list = [
 
 ref = RefData("/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/color_index.xlsx")
 data = WorkingData(file_index_list, ref)
-data.rule_out("全国")
-data.calc_complex_index('CO2 Emissions (kilotons)', 'Electricity Generation (GWh)', tech_specific=True)
-data.draw("Electricity Generation (GWh)", focused_region="Beijing", scatter=False)
+data.rule_out('全国')
+data.calc_complex_index('Electricity Generation (GWh)', 'Installed Power Capacity (MW)', tech_specific=False)
+data.draw("Electricity Generation (GWh)", scatter=False)
