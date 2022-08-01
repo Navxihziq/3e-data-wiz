@@ -104,7 +104,6 @@ class WorkingData:
         else:
             if not factor:
                 self.working_df['Complex'] = self.working_df[dividend] / self.working_df[divisor]
-                self.working_df.to_excel("./sheet0.xlsx", encoding='utf-8')
                 return self.working_df
 
             else:
