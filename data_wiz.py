@@ -97,7 +97,6 @@ class WorkingData:
             temp = self.working_df.copy()
             temp = temp.groupby(by=['年份']).sum().reset_index()
             temp['Complex'] = temp[dividend] / temp[divisor]
-            temp.to_excel("./sheet0.xlsx", encoding='utf-8')
 
             self.working_df['Complex'] = self.working_df['年份'].map(dict(temp[['年份', 'Complex']].values))
             return self.working_df
@@ -128,7 +127,6 @@ class WorkingData:
 
         # transpose the data for plotting
         self.working_df = self.__transpose_dataframe()
-        self.working_df.to_excel("./orderCheck.xlsx", encoding="utf-8")
         self.working_df.index = self.working_df.index.map(int).map(str)
 
         # line plot section
@@ -147,7 +145,7 @@ class WorkingData:
             # spread out the bars by tech group
             bar_df.plot(kind='bar', color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
 
-        bar_df.to_excel("./bar_plot_sheet.xlsx", encoding='utf-8')  # saving the bar plot data to excel
+        bar_df.to_excel("./checking/bar_plot_sheet.xlsx", encoding='utf-8')  # saving the bar plot data to excel
 
         ax2 = ax.twinx()
 
@@ -161,9 +159,9 @@ class WorkingData:
         ax2.get_legend().remove()  # remove the legend of line plot
 
         # ax.set_yscale('log')    # set y-axis scale to log
-        line_df.to_excel("./line_plot_sheet.xlsx", encoding='utf-8')
+        line_df.to_excel("./checking/line_plot_sheet.xlsx", encoding='utf-8')
 
-        fig.savefig("./checking_graph.png", dpi=300)  # saving the graph to file
+        fig.savefig("./checking/checking_graph.png", dpi=300)  # saving the graph to file
 
         plt.show()
 
