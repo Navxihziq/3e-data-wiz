@@ -130,6 +130,7 @@ class WorkingData:
 
         # line plot section
         line_df = self.working_df[self.working_df['index'] == "Complex"]
+        line_df = line_df.loc[:, (line_df != 0).any(axis=0)]
 
         # bar plot section
         bar_df = self.working_df[self.working_df['index'] != 'Complex']
