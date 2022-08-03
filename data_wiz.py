@@ -111,9 +111,9 @@ class WorkingData:
             return self.working_df
 
     def draw(self, focused_index: str, focused_region=None, scatter=False):
-        fig, ax = plt.subplots(nrows=1, ncols=1)
-        fig.set_size_inches(9, 9)
-        fig.set_dpi(300)
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(9, 9), dpi=300)
+
+        ax2 = ax.twinx()
 
         if focused_region is None and (self.regional_agg_level != "全国"):
             raise Exception
@@ -130,35 +130,46 @@ class WorkingData:
 
         # line plot section
         line_df = self.working_df[self.working_df['index'] == "Complex"]
-        line_df = line_df.loc[:, (line_df != 0).any(axis=0)]
 
         # bar plot section
         bar_df = self.working_df[self.working_df['index'] != 'Complex']
         bar_df = bar_df[bar_df['index'] == focused_index]  # choose the index to plot in bar plot
 
-        if not self.tech_specific:
-            line_df = line_df.dropna(axis="columns", how="any").iloc[:, :1]
-            bar_df.plot(kind='bar', stacked=True,
-                        color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
+        if scatter:
+            if self.tech_specific:
+                bar_df_long = bar_df.reset_index().drop(columns=['index']).melt(id_vars='年份', value_name='bar_value')
+                line_df_long = line_df.reset_index().drop(columns=['index']).melt(id_vars='年份', value_name='复合指标')
+                color = [self.ref.color_scheme.get(x, '#111111') for x in bar_df_long['variable']]
+                sns.barplot(data=bar_df_long, x='年份', y='bar_value', dodge=True, hue='variable', palette=self.ref.color_scheme, ax=ax)
+                sns.stripplot(data=line_df_long, x='年份', y='复合指标', dodge=True, jitter=False, hue='variable', palette=self.ref.color_scheme, edgecolor='white', linewidth=1, ax=ax2)
+                ax.set(ylabel=None)
+                ax2.set(ylabel=None)
 
+            else:
+                line_df = line_df.loc[:, (line_df != 0).any(axis=0)]
+                bar_df.plot(kind='bar', stacked=True,
+                            color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
+                sns.scatterplot(data=line_df, ax=ax2)
         else:
-            # spread out the bars by tech group
-            bar_df.plot(kind='bar', color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
+            line_df = line_df.loc[:, (line_df != 0).any(axis=0)]
+            if self.tech_specific:
+                bar_df.plot(kind='bar', color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
+                line_df = line_df.dropna(axis="columns", how="any").iloc[:, :1]
+                sns.lineplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns],
+                             marker='o', ax=ax2)
+
+            else:
+                bar_df.plot(kind='bar', stacked=True,
+                            color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
+                sns.lineplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns],
+                             marker='o', ax=ax2)
 
         bar_df.to_excel("./checking/bar_plot_sheet.xlsx", encoding='utf-8')  # saving the bar plot data to excel
 
-        ax2 = ax.twinx()
+        ax.legend().remove()  # remove the legend of the bar plot
+        ax2.legend().remove()  # remove the legend of line plot
 
-        sns.scatterplot(data=line_df, ax=ax2)
-        if not scatter:
-            ax3 = ax.twinx()
-            sns.lineplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax3)
-            ax3.get_legend().remove()  # remove legend of the points on line plot
-
-        ax.get_legend().remove()  # remove the legend of the bar plot
-        ax2.get_legend().remove()  # remove the legend of line plot
-
-        # ax.set_yscale('log')    # set y-axis scale to log
+        ax.set_yscale('log')  # set y-axis scale to log
         line_df.to_excel("./checking/line_plot_sheet.xlsx", encoding='utf-8')
 
         fig.savefig("./checking/checking_graph.png", dpi=300)  # saving the graph to file
@@ -180,3 +191,26 @@ class WorkingData:
 
         return recomb.sort_index()
 
+
+file_index_list = [
+    {
+        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1排放.xlsx",
+        "focused_index": "CO2 Emissions (kilotons)",
+        "columns": ["CO2 Emissions (kilotons)", "NOX Emissions (tons)", "SO2 Emissions (tons)",
+                    "CO2 Emissions from G&B H2 Production (kilotons)",
+                    "CO2 Emissions from COG H2 Production (kilotons)", "CO2 Emissions from H2 Production (kilotons)"]
+    },
+    {
+        "path": "/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/情景1产量.xlsx",
+        "focused_index": "Electricity Generation (GWh)",
+        "columns": ["Electricity Generation (GWh)", "Planned Curtailment (GWh)", "Hydrogen Production (MWh)",
+                    "Hydrogen Production (10000 Ton)", "Heat Generation (TJ)"]
+    }
+]
+
+ref = RefData("/Users/zhixuan/PycharmProjects/3e-data-wiz/example-files/color_index.xlsx")
+data = WorkingData(file_index_list, ref)
+data.rule_out('省下区域', selected_region=['Heilongjiang_A'], region_select_reverse=False,
+              selected_tech_group=['压缩空气储能', '化学储能'], tech_group_select_reverse=True)
+data.calc_complex_index('CO2 Emissions (kilotons)', 'Electricity Generation (GWh)', tech_specific=True)
+data.draw("Electricity Generation (GWh)", focused_region='Heilongjiang_A', scatter=True)
