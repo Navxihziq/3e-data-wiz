@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -111,7 +112,7 @@ class WorkingData:
             return self.working_df
 
     def draw(self, focused_index: str, focused_region=None, scatter=False):
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(9, 9), dpi=300)
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20, 20), dpi=300)
 
         ax2 = ax.twinx()
 
@@ -139,9 +140,10 @@ class WorkingData:
             if self.tech_specific:
                 bar_df_long = bar_df.reset_index().drop(columns=['index']).melt(id_vars='年份', value_name='bar_value')
                 line_df_long = line_df.reset_index().drop(columns=['index']).melt(id_vars='年份', value_name='复合指标')
-                color = [self.ref.color_scheme.get(x, '#111111') for x in bar_df_long['variable']]
-                sns.barplot(data=bar_df_long, x='年份', y='bar_value', dodge=True, hue='variable', palette=self.ref.color_scheme, ax=ax)
-                sns.stripplot(data=line_df_long, x='年份', y='复合指标', dodge=True, jitter=False, hue='variable', palette=self.ref.color_scheme, edgecolor='white', linewidth=1, ax=ax2)
+                sns.barplot(data=bar_df_long, x='年份', y='bar_value', dodge=True, hue='variable',
+                            palette=self.ref.color_scheme, ax=ax)
+                sns.stripplot(data=line_df_long, x='年份', y='复合指标', dodge=True, jitter=False, hue='variable',
+                              palette=self.ref.color_scheme, edgecolor='white', linewidth=1, ax=ax2)
                 ax.set(ylabel=None)
                 ax2.set(ylabel=None)
 
@@ -176,17 +178,85 @@ class WorkingData:
 
         plt.show()
 
-    def __transpose_dataframe(self):
-        tech_group_order = self.ref.get_stack_order(self.working_df['Fuel_Group'].unique().tolist())
-        # make a new dataframe
-        recomb = pd.DataFrame(columns=tech_group_order)
+    def __transpose_dataframe(self, working_df=None):
+        if working_df is None:
+            tech_group_order = self.ref.get_stack_order(self.working_df['Fuel_Group'].unique().tolist())
+            # make a new dataframe
+            recomb = pd.DataFrame(columns=tech_group_order)
 
-        for idx in set(self.working_df.index):
-            temp = self.working_df.loc[[idx]].set_index("Fuel_Group").transpose()
-            temp = temp.reset_index()
-            temp[self.working_df.index.name] = idx
-            recomb = pd.concat([recomb, temp], ignore_index=True)
+            for idx in set(self.working_df.index):
+                temp = self.working_df.loc[[idx]].set_index("Fuel_Group").transpose()
+                temp = temp.reset_index()
+                temp[self.working_df.index.name] = idx
+                recomb = pd.concat([recomb, temp], ignore_index=True)
 
-        recomb = recomb.set_index(self.working_df.index.name)
+            recomb = recomb.set_index(self.working_df.index.name)
+
+        else:
+            tech_group_order = self.ref.get_stack_order(working_df['Fuel_Group'].unique().tolist())
+            # make a new dataframe
+            recomb = pd.DataFrame(columns=tech_group_order)
+
+            for idx in set(working_df.index):
+                temp = working_df.loc[[idx]].set_index("Fuel_Group").transpose()
+                temp = temp.reset_index()
+                temp[working_df.index.name] = idx
+                recomb = pd.concat([recomb, temp], ignore_index=True)
+
+            recomb = recomb.set_index(working_df.index.name)
 
         return recomb.sort_index()
+
+    def draw_sub_lineplot(self, focused_index, region, ax):
+        ax2 = ax.twinx()
+        working_df = self.working_df[self.working_df[self.regional_agg_level] == region].drop(
+            columns=[self.regional_agg_level]).set_index("年份")
+
+        # transpose the data for plotting
+        working_df = self.__transpose_dataframe(working_df)
+        working_df.index = working_df.index.map(int).map(str)
+
+        # line plot section
+        line_df = working_df[working_df['index'] == "Complex"]
+
+        # bar plot section
+        bar_df = working_df[working_df['index'] != 'Complex']
+        bar_df = bar_df[bar_df['index'] == focused_index]  # choose the index to plot in bar plot
+
+        line_df = line_df.loc[:, (line_df != 0).any(axis=0)].iloc[:, :1]
+
+        bar_df.plot(kind='bar', stacked=True,
+                    color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
+        sns.lineplot(data=line_df, marker='o', ax=ax2)
+
+        ax.get_legend().remove()
+        ax2.get_legend().remove()
+        ax.set_title(str(region))
+
+    def subplot(self, by: str, focused_index: str, scatter=False, ncol=None, nrow=None):
+        if not scatter:
+            self.working_df = self.working_df.sort_values(by=self.regional_agg_level, ascending=True)
+            # make subplots of different areas
+            # get the number of different regions available
+            # self.tech_specific is expected to be false
+            regions = list(self.working_df[self.regional_agg_level].unique())
+            len_regions = len(regions)
+            if ncol is None and nrow is None:
+                ncols = int(np.ceil(np.sqrt(len_regions)))
+                nrows = int(np.ceil(len_regions/ncols))
+
+            else:
+                # todo: temp logic
+                ncols = ncol
+                nrows = nrow
+
+            fig, axs = plt.subplots(ncols=ncols, nrows=nrows, sharex=True, sharey=True, figsize=(9, 9), dpi=300)
+
+            for row in range(nrows):
+                for col in range(ncols):
+                    if row*ncols+col < len_regions:
+                        self.draw_sub_lineplot(focused_index=focused_index, region=regions[row*ncols+col], ax=axs[row, col])
+                    else:
+                        break
+
+            fig.show()

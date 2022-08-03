@@ -166,3 +166,4 @@ cython_debug/
 
 # Files for the purpose of checking
 /checking
+/test
