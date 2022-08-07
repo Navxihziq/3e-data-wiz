@@ -233,7 +233,7 @@ class WorkingData:
         ax2.get_legend().remove()
         ax.set_title(str(region))
 
-    def subplot(self, by: str, focused_index: str, scatter=False, ncol=None, nrow=None):
+    def subplot(self, by: str, focused_index: str, scatter=False, ncols=None):
         if not scatter:
             self.working_df = self.working_df.sort_values(by=self.regional_agg_level, ascending=True)
             # make subplots of different areas
@@ -241,16 +241,14 @@ class WorkingData:
             # self.tech_specific is expected to be false
             regions = list(self.working_df[self.regional_agg_level].unique())
             len_regions = len(regions)
-            if ncol is None and nrow is None:
+            if ncols is None:
                 ncols = int(np.ceil(np.sqrt(len_regions)))
                 nrows = int(np.ceil(len_regions/ncols))
 
             else:
-                # todo: temp logic
-                ncols = ncol
-                nrows = nrow
+                nrows = int(np.ceil(len_regions/ncols))
 
-            fig, axs = plt.subplots(ncols=ncols, nrows=nrows, sharex=True, sharey=True, figsize=(9, 9), dpi=300)
+            fig, axs = plt.subplots(ncols=ncols, nrows=nrows, sharex=True, sharey=True, figsize=(ncols*3, nrows*3), dpi=300)
 
             for row in range(nrows):
                 for col in range(ncols):
