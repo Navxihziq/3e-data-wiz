@@ -3,14 +3,15 @@ import matplotlib.pyplot as plt
 
 
 class Data:
-    def __init__(self, first_path, second_path, ref_path, columns=None, province=None):
+    def __init__(self, first_path, second_path, cref_path, pref_path=None, columns=None, province=None):
         if columns is None:
             columns = ['年份', '省份', '技术', '星期', '时刻', 'Level']
 
         self.first_path = first_path
         self.second_path = second_path
-        self.ref_path = ref_path
-        self.ref_dataframe = pd.read_excel(self.ref_path)
+        self.cref_path = cref_path
+        self.pref_path = pref_path
+        self.cref_dataframe = pd.read_excel(self.cref_path)
         self.columns = columns
         self.province = province
         self.dataframe = self.__get_dataframe()
@@ -19,10 +20,20 @@ class Data:
         self.color_scheme = self.__get_color_scheme()
 
     def __get_color_scheme(self):
-        return dict(self.ref_dataframe[['Fuel_Group', "HEX"]].dropna(how="all").values)
+        return dict(self.cref_dataframe[['Fuel_Group', "HEX"]].dropna(how="all").values)
 
     def __get_tech_group_dict(self):
-        return dict(self.ref_dataframe[['Tech', 'Fuel_Group']].values)
+        return dict(self.cref_dataframe[['Tech', 'Fuel_Group']].values)
+
+    def __get_province_dict(self):
+        dict = {}
+        df = pd.read_excel(self.pref_path)
+        for _index, row in df.iterrows():
+            ls = row['Subprovince'].split(",")
+            for subprovince in ls:
+                dict[subprovince] = row['Province'].strip()
+
+        return dict
 
     def __get_dataframe(self):
         # read the files
@@ -43,6 +54,10 @@ class Data:
         # convert tech to tech group and add to the end of the file
         dataframe['Tech_Group'] = dataframe['技术'].map(self.__get_tech_group_dict()).fillna('其他')
 
+        if self.pref_path is not None:
+            # add a province column for each sub-province regions
+            dataframe['省份'] = dataframe['省份'].map(self.__get_province_dict()).fillna('其他')
+
         if self.province is not None:
             dataframe = dataframe[dataframe['省份'] == self.province]
 
@@ -56,7 +71,7 @@ class Data:
 
     def __get_stack_order(self, dataframe):
         # get the designed stack order
-        stack_order = self.ref_dataframe.dropna().sort_values(by='Order', ascending=True)[
+        stack_order = self.cref_dataframe.dropna().sort_values(by='Order', ascending=True)[
             'Fuel_Group'].unique().tolist()
 
         # get every tech group appeared in dataframe
@@ -83,3 +98,4 @@ class Data:
         # plot the graph
         self.aggregated_dataframe.plot.area(figsize=(20, 9), color=[self.color_scheme.get(x, '#111111') for x in
                                                                     self.aggregated_dataframe.columns], ax=ax)
+        plt.show()
