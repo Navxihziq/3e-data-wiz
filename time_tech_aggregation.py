@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 class Data:
-    def __init__(self, first_path, second_path, ref_path, columns=None):
+    def __init__(self, first_path, second_path, ref_path, columns=None, province=None):
         if columns is None:
             columns = ['年份', '省份', '技术', '星期', '时刻', 'Level']
 
@@ -12,6 +12,7 @@ class Data:
         self.ref_path = ref_path
         self.ref_dataframe = pd.read_excel(self.ref_path)
         self.columns = columns
+        self.province = province
         self.dataframe = self.__get_dataframe()
         self.aggregated_dataframe = self.__aggregate()
         self.stack_order = self.__get_stack_order(self.aggregated_dataframe)
@@ -42,11 +43,16 @@ class Data:
         # convert tech to tech group and add to the end of the file
         dataframe['Tech_Group'] = dataframe['技术'].map(self.__get_tech_group_dict()).fillna('其他')
 
+        if self.province is not None:
+            dataframe = dataframe[dataframe['省份'] == self.province]
+
         return dataframe
 
     def __aggregate(self) -> pd.DataFrame:
-        return self.dataframe.groupby(['星期', '时刻', '省份', 'Tech_Group']).sum().reset_index().pivot(index=['星期', '时刻', '省份'], columns='Tech_Group', values=['Level'])
-        # ['Level']
+        dataframe = self.dataframe.groupby(by=['年份', '省份', '星期', '时刻', 'Tech_Group']).sum().reset_index().pivot(
+            columns=['Tech_Group'], index=['年份', '省份', '星期', '时刻'])['Level']
+
+        return dataframe.loc[:, (dataframe != 0).any(axis=0)]
 
     def __get_stack_order(self, dataframe):
         # get the designed stack order
@@ -68,7 +74,12 @@ class Data:
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20, 20), dpi=300)
 
         # specifying the order of the tech groups
-        self.aggregated_dataframe.columns = self.stack_order + ['其他']
+        # default there are new tech(s)
+        try:
+            self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order + ['其他']]
+        except KeyError:
+            self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order]
 
         # plot the graph
-        self.aggregated_dataframe.plot.area(figsize=(20, 9), color=[self.color_scheme.get(x, '#111111') for x in self.aggregated_dataframe.columns], ax=ax)
+        self.aggregated_dataframe.plot.area(figsize=(20, 9), color=[self.color_scheme.get(x, '#111111') for x in
+                                                                    self.aggregated_dataframe.columns], ax=ax)
