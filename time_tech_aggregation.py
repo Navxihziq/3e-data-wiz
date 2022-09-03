@@ -3,21 +3,34 @@ import matplotlib.pyplot as plt
 
 
 class Data:
-    def __init__(self, first_path, second_path, cref_path, pref_path=None, columns=None, province=None):
+    def __init__(self, first_path, second_path, marginal_path, cref_path, pref_path=None, columns=None, province=None):
         if columns is None:
             columns = ['年份', '省份', '技术', '星期', '时刻', 'Level']
 
         self.first_path = first_path
         self.second_path = second_path
+        self.marginal_path = marginal_path
+
         self.cref_path = cref_path
         self.pref_path = pref_path
         self.cref_dataframe = pd.read_excel(self.cref_path)
+
         self.columns = columns
         self.province = province
         self.dataframe = self.__get_dataframe()
+        self.marginal_dataframe = self.__get_marginal_dataframe()
         self.aggregated_dataframe = self.__aggregate()
         self.stack_order = self.__get_stack_order(self.aggregated_dataframe)
         self.color_scheme = self.__get_color_scheme()
+
+    def __get_marginal_dataframe(self) -> pd.DataFrame:
+        dataframe = pd.read_excel(self.marginal_path).iloc[:, :5]
+        dataframe.columns = ['年份', '省份', '星期', '时刻', 'Marginal']
+
+        if self.province is not None:
+            dataframe = dataframe[dataframe['省份'] == self.province]
+
+        return dataframe
 
     def __get_color_scheme(self):
         return dict(self.cref_dataframe[['Fuel_Group', "HEX"]].dropna(how="all").values)
@@ -66,7 +79,7 @@ class Data:
     def __aggregate(self) -> pd.DataFrame:
         dataframe = self.dataframe.groupby(by=['年份', '省份', '星期', '时刻', 'Tech_Group']).sum().reset_index().pivot(
             columns=['Tech_Group'], index=['年份', '省份', '星期', '时刻'])['Level']
-
+        # get rid of the all-zero columns
         return dataframe.loc[:, (dataframe != 0).any(axis=0)]
 
     def __get_stack_order(self, dataframe):
@@ -87,9 +100,10 @@ class Data:
 
     def stack_plot(self):
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20, 20), dpi=300)
+        ax2 = ax.twinx()
 
         # specifying the order of the tech groups
-        # default there are new tech(s)
+        # by default there are new tech(s)
         try:
             self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order + ['其他']]
         except KeyError:
