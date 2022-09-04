@@ -1,4 +1,5 @@
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 
@@ -30,7 +31,7 @@ class Data:
         if self.province is not None:
             dataframe = dataframe[dataframe['省份'] == self.province]
 
-        return dataframe
+        return dataframe.set_index(keys=['年份', '省份', '星期', '时刻'])
 
     def __get_color_scheme(self):
         return dict(self.cref_dataframe[['Fuel_Group', "HEX"]].dropna(how="all").values)
@@ -53,7 +54,7 @@ class Data:
         first_dataframe = pd.read_excel(self.first_path)
         second_dataframe = pd.read_excel(self.second_path)
 
-        # keep the first 5 columns
+        # keep the first 6 columns
         first_dataframe = first_dataframe.iloc[:, :6]
         second_dataframe = second_dataframe.iloc[:, :6]
 
@@ -110,6 +111,6 @@ class Data:
             self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order]
 
         # plot the graph
-        self.aggregated_dataframe.plot.area(figsize=(20, 9), color=[self.color_scheme.get(x, '#111111') for x in
-                                                                    self.aggregated_dataframe.columns], ax=ax)
+        self.aggregated_dataframe.plot.area(figsize=(20, 9), color=[self.color_scheme.get(x, '#111111') for x in self.aggregated_dataframe.columns], ax=ax)
+        # sns.stripplot(data=self.marginal_dataframe, ax=ax2, dodge=True)
         plt.show()
