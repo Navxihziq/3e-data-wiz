@@ -111,8 +111,9 @@ class WorkingData:
                 self.working_df['Complex'] = self.working_df['Complex'] / 8760
             return self.working_df
 
-    def draw(self, focused_index: str, focused_region=None, scatter=False):
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20, 20), dpi=300)
+    def draw(self, focused_index: str, focused_region=None, scatter=False, bar_legend=False, line_legend=False,
+             log_scale=False):
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16, 9), dpi=300)
 
         ax2 = ax.twinx()
 
@@ -145,10 +146,10 @@ class WorkingData:
                 sns.stripplot(data=line_df_long, x='年份', y='复合指标', dodge=True, jitter=False, hue='variable',
                               palette=self.ref.color_scheme, edgecolor='white', linewidth=1, ax=ax2)
                 ax.set(ylabel=None)
-                ax2.set(ylabel=None)
+                # ax2.set(ylabel=None)
 
             else:
-                line_df = line_df.loc[:, (line_df != 0).any(axis=0)]
+                line_df = line_df.loc[:, (line_df != 0).any(axis=0)].iloc[:, 0]
                 bar_df.plot(kind='bar', stacked=True,
                             color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
                 sns.scatterplot(data=line_df, ax=ax2)
@@ -163,15 +164,28 @@ class WorkingData:
             else:
                 bar_df.plot(kind='bar', stacked=True,
                             color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns], ax=ax)
-                sns.lineplot(data=line_df, color=[self.ref.color_scheme.get(x, '#111111') for x in bar_df.columns],
-                             marker='o', ax=ax2)
+                sns.lineplot(data=line_df.dropna(axis=1, how='any').iloc[:, 0], marker='o', ax=ax2)
 
         bar_df.to_excel("./checking/bar_plot_sheet.xlsx", encoding='utf-8')  # saving the bar plot data to excel
 
-        ax.legend().remove()  # remove the legend of the bar plot
-        ax2.legend().remove()  # remove the legend of line plot
+        # rename the lineplot axis
+        # todo: modify these labels
+        ax2.yaxis.set_label_text('发电碳排放强度（吨 $CO_2/MWh$)')
+        x_ticks = [str(x) for x in range(2020, 2061, 5)]
+        ax.set_xticklabels(x_ticks, rotation=0)
+        ax.set_xlabel(None)
+        ax.yaxis.set_label_text('发电量（TWH）')
+        ax2.set_ylim(ymin=line_df.iloc[:, 0].min()-0.1)
 
-        ax.set_yscale('log')  # set y-axis scale to log
+        ax.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc='lower left', mode='expand', ncol=11)
+
+        if not bar_legend:
+            ax.legend().remove()  # remove the legend of the bar plot
+        if not line_legend:
+            ax2.legend().remove()  # remove the legend of line plot
+
+        if log_scale:
+            ax.set_yscale('log')  # set y-axis scale to log
         line_df.to_excel("./checking/line_plot_sheet.xlsx", encoding='utf-8')
 
         fig.savefig("./checking/checking_graph.png", dpi=300)  # saving the graph to file
@@ -243,17 +257,19 @@ class WorkingData:
             len_regions = len(regions)
             if ncols is None:
                 ncols = int(np.ceil(np.sqrt(len_regions)))
-                nrows = int(np.ceil(len_regions/ncols))
+                nrows = int(np.ceil(len_regions / ncols))
 
             else:
-                nrows = int(np.ceil(len_regions/ncols))
+                nrows = int(np.ceil(len_regions / ncols))
 
-            fig, axs = plt.subplots(ncols=ncols, nrows=nrows, sharex=True, sharey=True, figsize=(ncols*3, nrows*3), dpi=300)
+            fig, axs = plt.subplots(ncols=ncols, nrows=nrows, sharex=True, sharey=True, figsize=(ncols * 3, nrows * 3),
+                                    dpi=300)
 
             for row in range(nrows):
                 for col in range(ncols):
-                    if row*ncols+col < len_regions:
-                        self.draw_sub_lineplot(focused_index=focused_index, region=regions[row*ncols+col], ax=axs[row, col])
+                    if row * ncols + col < len_regions:
+                        self.draw_sub_lineplot(focused_index=focused_index, region=regions[row * ncols + col],
+                                               ax=axs[row, col])
                     else:
                         break
 
