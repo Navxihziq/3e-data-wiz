@@ -3,6 +3,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
+def remove_year(row: pd.Series):
+    return row['技术'][:-5]
+
+
 class Data:
     def __init__(self, first_path, second_path, marginal_path, cref_path, pref_path=None, columns=None, province=None):
         if columns is None:
@@ -19,6 +23,9 @@ class Data:
         self.columns = columns
         self.province = province
         self.dataframe = self.__get_dataframe()
+        # todo: remove after
+        self.dataframe['年份'] = 2050
+
         self.marginal_dataframe = self.__get_marginal_dataframe()
         self.aggregated_dataframe = self.__aggregate()
         self.stack_order = self.__get_stack_order(self.aggregated_dataframe)
@@ -64,6 +71,9 @@ class Data:
 
         # concat the 2 dataframes together
         dataframe = pd.concat(objs=[first_dataframe, second_dataframe], axis='index', join='inner', ignore_index=True)
+
+        # todo: remove after debugging
+        dataframe['技术'] = dataframe.apply(remove_year, axis=1)
 
         # convert tech to tech group and add to the end of the file
         dataframe['Tech_Group'] = dataframe['技术'].map(self.__get_tech_group_dict()).fillna('其他')
@@ -111,6 +121,7 @@ class Data:
             self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order]
 
         # plot the graph
-        self.aggregated_dataframe.plot.area(figsize=(20, 9), color=[self.color_scheme.get(x, '#111111') for x in self.aggregated_dataframe.columns], ax=ax)
+        self.aggregated_dataframe.plot.area(figsize=(20, 9), color=[self.color_scheme.get(x, '#111111') for x in
+                                                                    self.aggregated_dataframe.columns], ax=ax)
         # sns.stripplot(data=self.marginal_dataframe, ax=ax2, dodge=True)
         plt.show()
