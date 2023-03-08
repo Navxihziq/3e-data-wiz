@@ -31,6 +31,11 @@ class Data:
         self.stack_order = self.__get_stack_order(self.aggregated_dataframe)
         self.color_scheme = self.__get_color_scheme()
 
+        try:
+            self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order + ['其他']]
+        except KeyError:
+            self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order]
+
     def __get_marginal_dataframe(self) -> pd.DataFrame:
         dataframe = pd.read_excel(self.marginal_path).iloc[:, :5]
         dataframe.columns = ['年份', '省份', '星期', '时刻', 'Marginal']
@@ -113,15 +118,25 @@ class Data:
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20, 20), dpi=300)
         ax2 = ax.twinx()
 
-        # specifying the order of the tech groups
-        # by default there are new tech(s)
-        try:
-            self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order + ['其他']]
-        except KeyError:
-            self.aggregated_dataframe = self.aggregated_dataframe[self.stack_order]
-
         # plot the graph
         self.aggregated_dataframe.plot.area(figsize=(20, 9), color=[self.color_scheme.get(x, '#111111') for x in
                                                                     self.aggregated_dataframe.columns], ax=ax)
         # sns.stripplot(data=self.marginal_dataframe, ax=ax2, dodge=True)
         plt.show()
+        fig.savefig("./checking/tta_area_plot.png")
+
+    def bar_plot(self, detailed_labels=False):
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20, 20), dpi=410)
+        if detailed_labels:
+            data_2_plt = self.aggregated_dataframe
+        else:
+            data_2_plt = self.aggregated_dataframe.reset_index().drop(axis=1, labels=['年份', '省份']).set_index(['星期', '时刻'])
+        # plot the bar plot this time
+        data_2_plt.plot(kind='bar', width=1.0, stacked=True, ax=ax, figsize=(20, 9),
+                                         color=[self.color_scheme.get(x, '#111111') for x in self.aggregated_dataframe.columns])
+        # positioning the legend
+        ax.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc='lower left', mode='expand')
+        # remove the grid
+        plt.grid(None)
+        plt.show()
+        fig.savefig("./checking/tta_bar_plot.png")
